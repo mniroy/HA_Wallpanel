@@ -13,5 +13,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "HAKiosk"
+rootProject.name = "HAWallpanel"
 include ':app'

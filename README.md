@@ -1,4 +1,4 @@
-# HA Kiosk Browser
+# HA Wallpanel Browser
 
 A full-screen Android kiosk browser app with camera-based motion detection, proximity sensor control, and screen management - similar to Fully Kiosk Browser.
 

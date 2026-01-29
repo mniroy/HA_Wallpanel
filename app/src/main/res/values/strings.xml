@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">HA Kiosk</string>
-    <string name="settings_title">Kiosk Settings</string>
-    <string name="settings_instructions">Instructions:\n\n• Tap 5 times on the top-left corner to access settings\n\nMotion Detection:\n• Screen turns ON when motion is detected in front of camera\n• Screen turns OFF after no motion for the set delay\n\nProximity Sensor:\n• Wave to Wake: Wave hand to turn screen on\n• Wave to Toggle: Wave to switch screen on/off\n• Near = Off: Screen off when object is near\n\nCamera Cover Detection:\n• Cover the front camera to turn off the screen\n• Uncover the camera to turn the screen back on\n\nSecurity:\n• Enable Device Admin for full screen lock control\n• Set a PIN code to exit kiosk mode</string>
+    <string name="app_name">HA Wallpanel</string>
+    <string name="settings_title">Wallpanel Settings</string>
+    <string name="settings_instructions">Instructions:\n\n• Tap 5 times on the top-left corner to access settings\n\nMotion Detection:\n• Screen turns ON when motion is detected in front of camera\n• Screen turns OFF after no motion for the set delay\n\nProximity Sensor:\n• Wave to Wake: Wave hand to turn screen on\n• Wave to Toggle: Wave to switch screen on/off\n• Near = Off: Screen off when object is near\n\nSecurity:\n• Enable Device Admin for full screen lock control\n• Set a PIN code to exit kiosk mode</string>
 </resources>

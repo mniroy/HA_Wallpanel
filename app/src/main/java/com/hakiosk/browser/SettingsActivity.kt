@@ -23,7 +23,7 @@ import androidx.appcompat.app.AppCompatActivity
 class SettingsActivity : AppCompatActivity() {
     
     companion object {
-        private const val PREFS_NAME = "HAKioskPrefs"
+        private const val PREFS_NAME = "HAWallpanelPrefs"
         private const val KEY_HOME_URL = "home_url"
         private const val KEY_SCREEN_CONTROL_ENABLED = "screen_control_enabled"
         private const val KEY_MOTION_DETECTION_ENABLED = "motion_detection_enabled"

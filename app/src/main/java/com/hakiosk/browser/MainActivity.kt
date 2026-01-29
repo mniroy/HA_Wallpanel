@@ -43,8 +43,8 @@ import kotlin.math.abs
 class MainActivity : AppCompatActivity(), SensorEventListener {
     
     companion object {
-        private const val TAG = "HAKiosk"
-        private const val PREFS_NAME = "HAKioskPrefs"
+        private const val TAG = "HAWallpanel"
+        private const val PREFS_NAME = "HAWallpanelPrefs"
         private const val KEY_HOME_URL = "home_url"
         private const val KEY_SCREEN_CONTROL_ENABLED = "screen_control_enabled"
         private const val KEY_MOTION_DETECTION_ENABLED = "motion_detection_enabled"
@@ -392,7 +392,7 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
             cacheMode = WebSettings.LOAD_DEFAULT
             
             // User agent
-            userAgentString = userAgentString + " HAKiosk/1.0"
+            userAgentString = userAgentString + " HAWallpanel/1.0"
         }
         
         webView.webViewClient = object : WebViewClient() {

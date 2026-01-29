@@ -27,7 +27,7 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="System Initialized"
+            android:text="HA Wallpanel Initialized"
             android:textColor="@color/text_primary"
             android:textSize="22sp"
             android:textStyle="bold"
