@@ -1,0 +1,361 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/background"
+    android:fillViewport="true"
+    tools:context=".SettingsActivity">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:paddingHorizontal="24dp"
+        android:paddingVertical="32dp">
+
+        <!-- Header -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:layout_marginBottom="32dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="System Settings"
+                android:textSize="22sp"
+                android:textStyle="bold"
+                android:textColor="@color/text_primary" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Settings can be accessed by tapping the top-left corner five times."
+                android:textSize="14sp"
+                android:textColor="@color/primary"
+                android:layout_marginTop="4dp" />
+        </LinearLayout>
+
+        <!-- URL Management -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:background="@drawable/card_background"
+            android:padding="20dp"
+            android:layout_marginBottom="20dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Application URL"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:textColor="@color/text_primary"
+                android:layout_marginBottom="4dp" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="The destination address for the kiosk browser."
+                android:textSize="12sp"
+                android:textColor="@color/text_secondary"
+                android:layout_marginBottom="12dp" />
+
+            <EditText
+                android:id="@+id/urlInput"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="http://homeassistant.local:8123"
+                android:inputType="textUri"
+                android:paddingVertical="10dp"
+                android:paddingHorizontal="12dp"
+                android:background="@drawable/input_background"
+                android:textColor="@color/text_primary"
+                android:textColorHint="@color/text_hint"
+                android:textSize="14sp" />
+        </LinearLayout>
+
+        <!-- Display & Response Card -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:background="@drawable/card_background"
+            android:padding="20dp"
+            android:layout_marginBottom="20dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Display &amp; Responsiveness"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:textColor="@color/text_primary"
+                android:layout_marginBottom="16dp" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:baselineAligned="false"
+                android:layout_marginBottom="20dp">
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical"
+                    android:layout_marginEnd="16dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Screen Orientation"
+                        android:textSize="14sp"
+                        android:textColor="@color/text_secondary"
+                        android:layout_marginBottom="4dp" />
+
+                    <Spinner
+                        android:id="@+id/screenRotationSpinner"
+                        android:layout_width="match_parent"
+                        android:layout_height="44dp"
+                        android:background="@drawable/input_background"
+                        android:popupBackground="@color/surface" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:id="@+id/screenOffValue"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Turn screen off after:"
+                        android:textSize="14sp"
+                        android:textColor="@color/text_secondary"
+                        android:layout_marginBottom="4dp" />
+
+                    <SeekBar
+                        android:id="@+id/screenOffSeekBar"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:max="295"
+                        android:progress="25"
+                        android:paddingStart="0dp"
+                        android:paddingEnd="0dp" />
+                </LinearLayout>
+            </LinearLayout>
+
+            <View android:layout_width="match_parent" android:layout_height="1dp" android:background="@color/divider" android:layout_marginBottom="20dp" />
+
+            <TextView android:id="@+id/delayValue" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Sensor Response Delay" android:textSize="14sp" android:textColor="@color/text_secondary" android:layout_marginBottom="2dp" />
+            <SeekBar android:id="@+id/delaySeekBar" android:layout_width="match_parent" android:layout_height="wrap_content" android:max="1900" android:paddingStart="0dp" android:paddingEnd="0dp" />
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Overrides system timeout. Screen remains active until manually or sensor-triggered off." android:textSize="12sp" android:textColor="@color/text_hint" android:layout_marginTop="2dp" />
+        </LinearLayout>
+
+        <!-- Camera Sensors Card -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:background="@drawable/card_background"
+            android:padding="20dp"
+            android:layout_marginBottom="20dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Motion Detection"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:textColor="@color/text_primary"
+                android:layout_marginBottom="16dp" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginBottom="16dp">
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Camera Wake" android:textSize="14sp" android:textColor="@color/text_secondary" android:layout_marginBottom="2dp" />
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Initialize display using camera movement analysis." android:textSize="12sp" android:textColor="@color/text_hint" android:layout_marginBottom="4dp" />
+                    <Switch android:id="@+id/motionDetectionSwitch" android:layout_width="wrap_content" android:layout_height="wrap_content" android:minHeight="48dp" />
+                </LinearLayout>
+
+                <View android:id="@+id/screenControlSwitch" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />
+            </LinearLayout>
+
+            <View android:layout_width="match_parent" android:layout_height="1dp" android:background="@color/divider" android:layout_marginBottom="20dp" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal">
+                <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical" android:layout_marginEnd="16dp">
+                    <TextView android:id="@+id/motionValue" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Motion Intensity" android:textSize="14sp" android:textColor="@color/text_secondary" android:layout_marginBottom="2dp" />
+                    <SeekBar android:id="@+id/motionSeekBar" android:layout_width="match_parent" android:layout_height="wrap_content" android:max="49" android:paddingStart="0dp" android:paddingEnd="0dp" />
+                </LinearLayout>
+                <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical">
+                    <TextView android:id="@+id/brightnessValue" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Luminance Threshold" android:textSize="14sp" android:textColor="@color/text_secondary" android:layout_marginBottom="2dp" />
+                    <SeekBar android:id="@+id/brightnessSeekBar" android:layout_width="match_parent" android:layout_height="wrap_content" android:max="100" android:paddingStart="0dp" android:paddingEnd="0dp" />
+                </LinearLayout>
+            </LinearLayout>
+        </LinearLayout>
+
+        <!-- Proximity Hardware Card -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:background="@drawable/card_background"
+            android:padding="20dp"
+            android:layout_marginBottom="20dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Proximity Sensor"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:textColor="@color/text_primary"
+                android:layout_marginBottom="16dp" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginBottom="16dp">
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical"
+                    android:layout_marginEnd="16dp">
+                    <TextView android:id="@+id/proximitySensorStatus" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Sensor Availability" android:textSize="14sp" android:textColor="@color/text_secondary" android:layout_marginBottom="2dp" />
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Utilize dedicated proximity hardware." android:textSize="12sp" android:textColor="@color/text_hint" android:layout_marginBottom="4dp" />
+                    <Switch android:id="@+id/proximitySwitch" android:layout_width="wrap_content" android:layout_height="wrap_content" android:minHeight="48dp" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:id="@+id/proximityModeContainer"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Operating Mode" android:textSize="14sp" android:textColor="@color/text_secondary" android:layout_marginBottom="4dp" />
+                    <Spinner android:id="@+id/proximityModeSpinner" android:layout_width="match_parent" android:layout_height="44dp" android:background="@drawable/input_background" />
+                </LinearLayout>
+            </LinearLayout>
+        </LinearLayout>
+
+        <!-- Security Card -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:background="@drawable/card_background"
+            android:padding="20dp"
+            android:layout_marginBottom="32dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Security Verification"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:textColor="@color/text_primary"
+                android:layout_marginBottom="16dp" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal">
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical"
+                    android:layout_marginEnd="16dp">
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Termination PIN" android:textSize="14sp" android:textColor="@color/text_secondary" android:layout_marginBottom="2dp" />
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Required for application exit." android:textSize="12sp" android:textColor="@color/text_hint" android:layout_marginBottom="4dp" />
+                    <EditText android:id="@+id/pinInput" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="1234" android:inputType="numberPassword" android:maxLength="6" android:paddingVertical="8dp" android:paddingHorizontal="12dp" android:background="@drawable/input_background" android:textSize="14sp" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Administration" android:textSize="14sp" android:textColor="@color/text_secondary" android:layout_marginBottom="2dp" />
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Device management authority." android:textSize="12sp" android:textColor="@color/text_hint" android:layout_marginBottom="4dp" />
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/enableAdminButton"
+                        style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="Authorize"
+                        android:textSize="14sp"
+                        android:textAllCaps="false"
+                        app:cornerRadius="8dp" />
+                </LinearLayout>
+            </LinearLayout>
+        </LinearLayout>
+
+        <!-- Bottom Actions Row -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="end"
+            android:layout_marginBottom="16dp">
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/backButton"
+                style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Discard"
+                android:textSize="14sp"
+                android:textAllCaps="false"
+                android:layout_marginEnd="12dp"
+                app:cornerRadius="8dp"
+                android:paddingHorizontal="24dp" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/saveButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Apply Settings"
+                android:textSize="14sp"
+                android:textAllCaps="false"
+                app:cornerRadius="8dp"
+                android:paddingHorizontal="24dp" />
+        </LinearLayout>
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/exitKioskButton"
+            style="@style/Widget.MaterialComponents.Button.TextButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Terminate Application"
+            android:textColor="@color/error"
+            android:textSize="14sp"
+            android:textAllCaps="false"
+            android:layout_gravity="center" />
+
+    </LinearLayout>
+</ScrollView>

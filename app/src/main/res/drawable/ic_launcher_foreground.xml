@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    
+    <!-- Circular background for icon -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M54,54m-30,0a30,30 0,1 1,60 0a30,30 0,1 1,-60 0" />
+    
+    <!-- Simple K letter for Kiosk -->
+    <path
+        android:fillColor="#6366F1"
+        android:pathData="M42,38L42,70L48,70L48,56L60,70L68,70L54,54L66,38L58,38L48,52L48,38Z" />
+    
+</vector>
