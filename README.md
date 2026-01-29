@@ -1,163 +1,69 @@
-# HA Wallpanel Browser
+# HA Wallpanel
 
-A full-screen Android kiosk browser app with camera-based motion detection, proximity sensor control, and screen management - similar to Fully Kiosk Browser.
+A full-screen Android kiosk browser application designed for home automation dashboards. It features camera-based motion detection, proximity sensor integration, and advanced display management to ensure your dashboard is always ready when you approach it.
 
-## Features
+## Key Features
 
-### 🌐 Full-Screen Browser
-- Immersive full-screen WebView browsing
-- Hardware-accelerated rendering
-- JavaScript and local storage support
-- Progress indicator for page loading
-- Support for zoom gestures
+### Full-Screen Browser
+Immersive WebView browsing with hardware acceleration, JavaScript support, and local storage. Includes a progress indicator and zoom gesture support.
 
-### 📷 Motion Detection (Like Fully Kiosk)
-- **Screen Wake**: Automatically turns on the screen when motion is detected in front of the camera
-- **Auto Screen Off**: Turns off the screen after a configurable period of no motion (5 seconds to 5 minutes)
-- **Grid-based Detection**: Uses an 8x8 grid analysis for accurate motion detection
-- **Adjustable Sensitivity**: Configure motion sensitivity from 1-50
-- Works even when the screen is dimmed
+### Motion Detection
+Automatically turns on the display when motion is detected via the front-facing camera. The screen will turn off after a configurable period of inactivity, overriding system-level sleep settings. Detection intensity is fully adjustable.
 
-### 👋 Proximity Sensor Control
-Three modes available:
-1. **Wave to Wake**: Wave your hand near the sensor to turn the screen on
-2. **Wave to Toggle**: Wave to toggle the screen on/off
-3. **Near = Off, Far = On**: Screen turns off when something is near (like phone call behavior)
+### Proximity Sensor Hardware
+Integrates with physical proximity sensors if available on the device. Supports multiple modes:
+- Wave to Wake: Trigger display on via gesture.
+- Wave to Toggle: Manually switch display state.
+- Dynamic Occupancy: Near/far logic for automatic control.
 
-- Automatic sensor detection (shows if available)
-- Low power consumption
-- Works independently of camera
+### Kiosk Mode and Security
+- Prevents accidental exit via system navigation.
+- Can be configured as the default Home application (Launcher).
+- Optional Device Administration for advanced screen lock control.
+- PIN-protected settings menu and termination logic.
+- Automatic application start upon device boot.
 
-### 🖐️ Camera Cover Detection
-- Cover the front camera with your hand to instantly turn off the screen
-- Uncover the camera to turn the screen back on
-- Uses brightness analysis to detect camera coverage
-- Adjustable brightness threshold
+## How to Configure
 
-### 🔒 Kiosk Mode
-- Prevents back button from exiting the app
-- Can be set as default home app (launcher replacement)
-- Optional device admin for screen lock control
-- PIN-protected settings access
-- Auto-starts on device boot
+### Accessing System Settings
+Tap five times sequentially in the top-left corner of the screen to open the configuration menu.
 
-## How to Use
+### Core Settings
 
-### Accessing Settings
-Tap **5 times** on the top-left corner of the screen to open settings.
+#### Application URL
+Define the destination address (e.g., Home Assistant dashboard) for the browser.
 
-### Settings Options
+#### Display and Responsiveness
+- Screen Orientation: Lock to portrait or landscape, or use dynamic sensor-based rotation.
+- Turn screen off after: Set the duration of inactivity before the display is terminated.
+- Sensor Response Delay: Adjust the latency between detection events and system actions.
 
-#### Screen Control
-| Setting | Description |
-|---------|-------------|
-| Motion Detection | Enable/disable motion-based screen wake |
-| Proximity Sensor | Enable/disable proximity-based control |
-| Proximity Mode | Wave to Wake / Wave to Toggle / Near = Off |
-| Camera Cover Detection | Enable/disable camera coverage-based screen off |
-| Motion Sensitivity | How sensitive the motion detection is (1-50) |
-| Screen Off After | Time with no motion before screen off (5s - 5min) |
-| Brightness Threshold | Sensitivity for camera coverage detection |
-| Detection Delay | Delay between screen toggle events |
+#### Motion Detection
+- Camera Wake: Toggle camera-based analysis.
+- Detection Intensity: Adjust how significant movement must be to trigger a wake event.
+- Luminance Threshold: Configure the light level requirements for detection.
 
-#### Security
-| Setting | Description |
-|---------|-------------|
-| Exit PIN | PIN code to exit kiosk mode |
-| Device Admin | Enable for full screen lock control |
+#### Proximity Hardware
+- Sensor Availability: View the real-time status of your device's proximity hardware.
+- Operating Mode: Select how physical sensor triggers are handled.
 
-### Screen Control Behavior
+#### Security Verification
+- Termination PIN: Set the code required to close the application.
+- Administration: Grand device management authority to allow the app to lock the screen.
 
-1. **Motion Detection ON**:
-   - Screen wakes up when someone walks in front of the camera
-   - Screen turns off automatically after the configured delay if no motion is detected
+## Installation and Setup
 
-2. **Proximity Sensor ON**:
-   - Wave to Wake: Wave hand near sensor → Screen turns on
-   - Wave to Toggle: Wave hand → Screen toggles on/off
-   - Near = Off: Object near sensor → Screen off, object removed → Screen on
+1. Enable installation from unknown sources on your Android device.
+2. Install the provided APK file.
+3. Grant camera authorization when prompted for motion detection features.
+4. Optional: Set HA Wallpanel as the default Home app under System Settings.
 
-3. **Camera Cover Detection ON**:
-   - Cover the front camera → Screen turns off immediately
-   - Uncover the camera → Screen turns on
+## Technical Requirements
 
-4. **All Three Enabled**: 
-   - Motion or proximity wakes the screen
-   - Camera cover or proximity (depending on mode) turns it off
-   - No motion for X seconds turns it off
-
-## Building the App
-
-### Requirements
-- Android Studio Arctic Fox or newer
-- JDK 17 or newer
-- Android SDK 34
-
-### Build Steps
-1. Open the project in Android Studio
-2. Sync Gradle files
-3. Build > Build Bundle(s) / APK(s) > Build APK(s)
-4. The APK will be in `app/build/outputs/apk/debug/`
-
-### Or via command line:
-```bash
-./gradlew assembleDebug
-```
-
-## Installation
-
-1. Enable "Install from Unknown Sources" on your Android device
-2. Transfer the APK to your device
-3. Install the APK
-4. Grant camera permission when prompted
-5. (Optional) Set as default home app for full kiosk experience
-
-## Setting as Default Launcher
-
-For a true kiosk experience:
-1. Go to Settings > Apps > Default Apps > Home App
-2. Select "HA Kiosk"
-3. The device will now boot directly into the kiosk browser
-
-## Permissions
-
-- **INTERNET**: Required for web browsing
-- **CAMERA**: Required for motion detection and camera cover detection
-- **WAKE_LOCK**: Required to turn screen on
-- **RECEIVE_BOOT_COMPLETED**: Required for auto-start on boot
-
-Note: Proximity sensor does NOT require any additional permissions.
-
-## Comparison with Fully Kiosk
-
-| Feature | HA Kiosk | Fully Kiosk |
-|---------|----------|-------------|
-| Full-screen browser | ✅ | ✅ |
-| Motion detection wake | ✅ | ✅ |
-| Proximity sensor control | ✅ | ✅ |
-| Auto screen off | ✅ | ✅ |
-| Camera cover detection | ✅ | ✅ |
-| Adjustable sensitivity | ✅ | ✅ |
-| PIN protection | ✅ | ✅ |
-| Boot on startup | ✅ | ✅ |
-| Free & Open Source | ✅ | ❌ |
-
-## Troubleshooting
-
-### Proximity Sensor Not Working
-- Check if your device has a proximity sensor (Settings will show "Not Available" if missing)
-- Some devices have the sensor near the earpiece/camera
-- Try different proximity modes
-
-### Motion Detection Too Sensitive
-- Lower the motion sensitivity in settings
-- Increase the detection delay
-
-### Screen Doesn't Wake
-- Ensure camera permission is granted
-- Check that motion detection or proximity sensor is enabled
-- Try waving closer to the camera/sensor
+- Android SDK 34 or newer.
+- Front-facing camera for motion detection features.
+- Device Administration privileges for advanced power management.
 
 ## License
 
-MIT License - Free for personal and commercial use.
+This project is released under the MIT License.
