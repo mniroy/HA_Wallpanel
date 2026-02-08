@@ -56,7 +56,7 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Settings can be accessed by tapping the top-left corner five times."
+            android:text="Settings can be accessed by swiping from the left edge to the right."
             android:textColor="@color/text_hint"
             android:textSize="12sp"
             android:gravity="center"
@@ -76,14 +76,6 @@
         android:progressTint="@color/primary"
         android:visibility="gone" />
 
-    <!-- Invisible corner button for settings access (top-left) -->
-    <View
-        android:id="@+id/settingsCorner"
-        android:layout_width="60dp"
-        android:layout_height="60dp"
-        android:layout_gravity="top|start"
-        android:background="@android:color/transparent"
-        android:clickable="true"
-        android:focusable="true" />
+
 
 </FrameLayout>

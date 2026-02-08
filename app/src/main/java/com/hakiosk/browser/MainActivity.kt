@@ -21,7 +21,9 @@ import android.os.Handler
 import android.os.Looper
 import android.os.PowerManager
 import android.util.Log
+import android.view.GestureDetector
 import android.view.KeyEvent
+import android.view.MotionEvent
 import android.view.View
 import android.view.WindowInsets
 import android.view.WindowInsetsController
@@ -59,9 +61,7 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
         private const val CAMERA_PERMISSION_REQUEST = 1001
         private const val SETTINGS_CODE = 2001
         
-        // Tap pattern for settings access (5 taps in corner)
-        private const val SETTINGS_TAP_COUNT = 5
-        private const val SETTINGS_TAP_TIMEOUT = 3000L
+
         
         // Default motion detection settings
         private const val DEFAULT_MOTION_THRESHOLD = 15.0
@@ -111,9 +111,8 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
     private var lastProximityTime = 0L
     private var lastProximityNear = false
     
-    // Settings tap detection
-    private var settingsTapCount = 0
-    private var lastTapTime = 0L
+    private lateinit var gestureDetector: GestureDetector
+    
     private val mainHandler = Handler(Looper.getMainLooper())
     
     // Screen off timer runnable
@@ -330,13 +329,13 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
             openSettings()
         }
         
-        // Setup tap detection for settings access
-        findViewById<View>(R.id.settingsCorner).setOnClickListener {
-            handleSettingsTap()
-        }
+
+        
+        gestureDetector = GestureDetector(this, SwipeGestureListener())
         
         // Reset motion/activity timer on touch
-        val touchListener = View.OnTouchListener { _, _ ->
+        val touchListener = View.OnTouchListener { _, event ->
+            gestureDetector.onTouchEvent(event)
             resetScreenOffTimer()
             if (motionDetectionEnabled) {
                 onMotionDetected()
@@ -347,24 +346,7 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
         landingPage.setOnTouchListener(touchListener)
     }
     
-    private fun handleSettingsTap() {
-        val currentTime = System.currentTimeMillis()
-        
-        if (currentTime - lastTapTime > SETTINGS_TAP_TIMEOUT) {
-            settingsTapCount = 0
-        }
-        
-        settingsTapCount++
-        lastTapTime = currentTime
-        
-        if (settingsTapCount >= SETTINGS_TAP_COUNT) {
-            settingsTapCount = 0
-            openSettings()
-        } else {
-            val remaining = SETTINGS_TAP_COUNT - settingsTapCount
-            Toast.makeText(this, "$remaining sequential taps required for system access.", Toast.LENGTH_SHORT).show()
-        }
-    }
+
     
     private fun openSettings() {
         val intent = Intent(this, SettingsActivity::class.java)
@@ -657,6 +639,42 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
         }
     }
     
+    private inner class SwipeGestureListener : GestureDetector.SimpleOnGestureListener() {
+        private val SWIPE_THRESHOLD = 50
+        private val SWIPE_VELOCITY_THRESHOLD = 50
+        private val EDGE_THRESHOLD_PX = 100 // Detect if swipe starts within 100px of the edge
+
+        override fun onDown(e: MotionEvent): Boolean {
+            return true
+        }
+
+        override fun onFling(
+            e1: MotionEvent?,
+            e2: MotionEvent,
+            velocityX: Float,
+            velocityY: Float
+        ): Boolean {
+            if (e1 == null) return false
+            
+            val diffY = e2.y - e1.y
+            val diffX = e2.x - e1.x
+            
+            if (abs(diffX) > abs(diffY)) {
+                if (abs(diffX) > SWIPE_THRESHOLD && abs(velocityX) > SWIPE_VELOCITY_THRESHOLD) {
+                    if (diffX > 0) {
+                        // Swipe Right (Left to Right)
+                        // Check if swipe started from the left edge
+                        if (e1.x < EDGE_THRESHOLD_PX) {
+                            openSettings()
+                            return true
+                        }
+                    }
+                }
+            }
+            return false
+        }
+    }
+
     // Combined Motion and Brightness Analyzer
     private class MotionBrightnessAnalyzer(
         private val motionThreshold: Double,
