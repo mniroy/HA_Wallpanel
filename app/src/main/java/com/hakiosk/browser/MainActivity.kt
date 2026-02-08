@@ -60,6 +60,8 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
         private const val KEY_DETECTION_DELAY = "detection_delay"
 
         private const val KEY_SCREEN_OFF_DELAY = "screen_off_delay"
+        private const val KEY_HIDE_HEADER = "hide_header"
+        private const val KEY_HIDE_SIDEBAR = "hide_sidebar"
         private const val KEY_APP_THEME = "app_theme"
         private const val DEFAULT_URL = ""
         private const val CAMERA_PERMISSION_REQUEST = 1001
@@ -112,8 +114,12 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
     private var screenOffDelay = DEFAULT_SCREEN_OFF_DELAY
     private var lastToggleTime = 0L
     private var lastMotionTime = 0L
+
     private var lastProximityTime = 0L
     private var lastProximityNear = false
+    
+    private var hideHeader = false
+    private var hideSidebar = false
     
     private lateinit var gestureDetector: GestureDetector
     
@@ -218,6 +224,9 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
         motionThreshold = prefs.getFloat(KEY_MOTION_THRESHOLD, DEFAULT_MOTION_THRESHOLD.toFloat()).toDouble()
         detectionDelay = prefs.getLong(KEY_DETECTION_DELAY, 500L)
         screenOffDelay = prefs.getLong(KEY_SCREEN_OFF_DELAY, DEFAULT_SCREEN_OFF_DELAY)
+        
+        hideHeader = prefs.getBoolean(KEY_HIDE_HEADER, false)
+        hideSidebar = prefs.getBoolean(KEY_HIDE_SIDEBAR, false)
         
         // Apply screen rotation
         applyScreenRotation()
@@ -394,6 +403,10 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
             override fun onPageFinished(view: WebView?, url: String?) {
                 super.onPageFinished(view, url)
                 progressBar.visibility = View.GONE
+                
+                // Inject CSS to hide elements if enabled
+                injectKioskModeCss(view)
+                
                 resetScreenOffTimer()
             }
             
@@ -645,6 +658,36 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
                 resetScreenOffTimer()
             }
         }
+    }
+    
+    private fun injectKioskModeCss(view: WebView?) {
+        if (view == null) return
+        if (!hideHeader && !hideSidebar) return
+        
+        val sb = StringBuilder()
+        
+        if (hideHeader) {
+            sb.append("/* Hide Header */ app-header, .header { display: none !important; } ")
+        }
+        
+        if (hideSidebar) {
+            sb.append("/* Hide Sidebar */ ha-sidebar, .sidebar { display: none !important; } ")
+            sb.append("/* Fix Main Content Margin */ main { padding-left: 0 !important; margin-left: 0 !important; } ")
+            sb.append("/* Fix Drawer Layout */ ha-drawer > ha-sidebar { display: none !important; } ")
+            sb.append("/* Fix Drawer Content */ ha-drawer > .drawer-content { margin-left: 0 !important; } ")
+        }
+        
+        val css = sb.toString()
+        val js = """
+            (function() {
+                var style = document.createElement('style');
+                style.innerHTML = '$css';
+                document.head.appendChild(style);
+            })();
+        """.trimIndent()
+        
+        view.evaluateJavascript(js, null)
+        Log.d(TAG, "Injected Kiosk Mode CSS: hideHeader=$hideHeader, hideSidebar=$hideSidebar")
     }
     
     private inner class SwipeGestureListener : GestureDetector.SimpleOnGestureListener() {

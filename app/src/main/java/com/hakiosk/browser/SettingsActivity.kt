@@ -36,6 +36,8 @@ class SettingsActivity : AppCompatActivity() {
         private const val KEY_DETECTION_DELAY = "detection_delay"
         private const val KEY_SCREEN_OFF_DELAY = "screen_off_delay"
         private const val KEY_APP_THEME = "app_theme"
+        private const val KEY_HIDE_HEADER = "hide_header"
+        private const val KEY_HIDE_SIDEBAR = "hide_sidebar"
         private const val KEY_PIN_CODE = "pin_code"
         private const val DEFAULT_URL = ""
         private const val DEVICE_ADMIN_REQUEST = 1001
@@ -55,6 +57,8 @@ class SettingsActivity : AppCompatActivity() {
     
     private lateinit var urlInput: EditText
     private lateinit var motionDetectionSwitch: Switch
+    private lateinit var hideHeaderSwitch: Switch
+    private lateinit var hideSidebarSwitch: Switch
     private lateinit var proximitySwitch: Switch
     private lateinit var proximityModeSpinner: Spinner
     private lateinit var proximityModeContainer: LinearLayout
@@ -90,6 +94,8 @@ class SettingsActivity : AppCompatActivity() {
     private fun setupViews() {
         urlInput = findViewById(R.id.urlInput)
         motionDetectionSwitch = findViewById(R.id.motionDetectionSwitch)
+        hideHeaderSwitch = findViewById(R.id.hideHeaderSwitch)
+        hideSidebarSwitch = findViewById(R.id.hideSidebarSwitch)
         proximitySwitch = findViewById(R.id.proximitySwitch)
         proximityModeSpinner = findViewById(R.id.proximityModeSpinner)
         proximityModeContainer = findViewById(R.id.proximityModeContainer)
@@ -229,6 +235,8 @@ class SettingsActivity : AppCompatActivity() {
     private fun loadSettings() {
         urlInput.setText(prefs.getString(KEY_HOME_URL, DEFAULT_URL))
         motionDetectionSwitch.isChecked = prefs.getBoolean(KEY_MOTION_DETECTION_ENABLED, true)
+        hideHeaderSwitch.isChecked = prefs.getBoolean(KEY_HIDE_HEADER, false)
+        hideSidebarSwitch.isChecked = prefs.getBoolean(KEY_HIDE_SIDEBAR, false)
         proximitySwitch.isChecked = prefs.getBoolean(KEY_PROXIMITY_ENABLED, true)
         
         val proximityMode = prefs.getInt(KEY_PROXIMITY_MODE, PROXIMITY_MODE_WAVE_WAKE)
@@ -308,6 +316,8 @@ class SettingsActivity : AppCompatActivity() {
         prefs.edit().apply {
             putString(KEY_HOME_URL, finalUrl)
             putBoolean(KEY_MOTION_DETECTION_ENABLED, motionDetectionSwitch.isChecked)
+            putBoolean(KEY_HIDE_HEADER, hideHeaderSwitch.isChecked)
+            putBoolean(KEY_HIDE_SIDEBAR, hideSidebarSwitch.isChecked)
             putBoolean(KEY_PROXIMITY_ENABLED, proximitySwitch.isChecked)
             putInt(KEY_PROXIMITY_MODE, proximityModeSpinner.selectedItemPosition)
             putInt(KEY_SCREEN_ROTATION, screenRotationSpinner.selectedItemPosition)
