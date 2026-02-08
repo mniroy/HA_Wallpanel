@@ -1,5 +1,6 @@
 package com.hakiosk.browser
 
+import androidx.appcompat.app.AppCompatDelegate
 import android.app.admin.DevicePolicyManager
 import android.content.ComponentName
 import android.content.Context
@@ -34,6 +35,7 @@ class SettingsActivity : AppCompatActivity() {
         private const val KEY_MOTION_THRESHOLD = "motion_threshold"
         private const val KEY_DETECTION_DELAY = "detection_delay"
         private const val KEY_SCREEN_OFF_DELAY = "screen_off_delay"
+        private const val KEY_APP_THEME = "app_theme"
         private const val KEY_PIN_CODE = "pin_code"
         private const val DEFAULT_URL = ""
         private const val DEVICE_ADMIN_REQUEST = 1001
@@ -57,6 +59,7 @@ class SettingsActivity : AppCompatActivity() {
     private lateinit var proximityModeSpinner: Spinner
     private lateinit var proximityModeContainer: LinearLayout
     private lateinit var proximitySensorStatus: TextView
+    private lateinit var themeSpinner: Spinner
     private lateinit var screenRotationSpinner: Spinner
     private lateinit var brightnessSeekBar: SeekBar
     private lateinit var brightnessValue: TextView
@@ -91,6 +94,7 @@ class SettingsActivity : AppCompatActivity() {
         proximityModeSpinner = findViewById(R.id.proximityModeSpinner)
         proximityModeContainer = findViewById(R.id.proximityModeContainer)
         proximitySensorStatus = findViewById(R.id.proximitySensorStatus)
+        themeSpinner = findViewById(R.id.themeSpinner)
         screenRotationSpinner = findViewById(R.id.screenRotationSpinner)
         brightnessSeekBar = findViewById(R.id.brightnessSeekBar)
         brightnessValue = findViewById(R.id.brightnessValue)
@@ -115,6 +119,16 @@ class SettingsActivity : AppCompatActivity() {
             proximitySwitch.isEnabled = false
             proximityModeSpinner.isEnabled = false
         }
+        
+        // Setup theme spinner
+        val themeModes = arrayOf(
+            "System Default",
+            "Light",
+            "Dark"
+        )
+        val themeAdapter = ArrayAdapter(this, android.R.layout.simple_spinner_item, themeModes)
+        themeAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+        themeSpinner.adapter = themeAdapter
         
         // Setup proximity mode spinner
         val proximityModes = arrayOf(
@@ -220,6 +234,13 @@ class SettingsActivity : AppCompatActivity() {
         val proximityMode = prefs.getInt(KEY_PROXIMITY_MODE, PROXIMITY_MODE_WAVE_WAKE)
         proximityModeSpinner.setSelection(proximityMode)
         
+        val appTheme = prefs.getInt(KEY_APP_THEME, AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM)
+        themeSpinner.setSelection(when(appTheme) {
+            AppCompatDelegate.MODE_NIGHT_NO -> 1
+            AppCompatDelegate.MODE_NIGHT_YES -> 2
+            else -> 0
+        })
+        
         val screenRotation = prefs.getInt(KEY_SCREEN_ROTATION, ROTATION_PORTRAIT)
         screenRotationSpinner.setSelection(screenRotation)
         
@@ -278,6 +299,12 @@ class SettingsActivity : AppCompatActivity() {
         val screenOffSeconds = screenOffSeekBar.progress + 5
         val screenOffDelayMs = screenOffSeconds * 1000L
         
+        val selectedTheme = when(themeSpinner.selectedItemPosition) {
+            1 -> AppCompatDelegate.MODE_NIGHT_NO
+            2 -> AppCompatDelegate.MODE_NIGHT_YES
+            else -> AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM
+        }
+        
         prefs.edit().apply {
             putString(KEY_HOME_URL, finalUrl)
             putBoolean(KEY_MOTION_DETECTION_ENABLED, motionDetectionSwitch.isChecked)
@@ -288,9 +315,12 @@ class SettingsActivity : AppCompatActivity() {
             putFloat(KEY_MOTION_THRESHOLD, motionThreshold.toFloat())
             putLong(KEY_DETECTION_DELAY, (delaySeekBar.progress + 100).toLong())
             putLong(KEY_SCREEN_OFF_DELAY, screenOffDelayMs)
+            putInt(KEY_APP_THEME, selectedTheme)
             putString(KEY_PIN_CODE, pinInput.text.toString())
             apply()
         }
+        
+        AppCompatDelegate.setDefaultNightMode(selectedTheme)
         
         Toast.makeText(this, "Configuration Applied", Toast.LENGTH_SHORT).show()
         setResult(RESULT_OK)

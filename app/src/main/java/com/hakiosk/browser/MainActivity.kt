@@ -40,6 +40,8 @@ import androidx.core.view.WindowCompat
 import java.nio.ByteBuffer
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
+
+import androidx.appcompat.app.AppCompatDelegate
 import kotlin.math.abs
 
 class MainActivity : AppCompatActivity(), SensorEventListener {
@@ -56,7 +58,9 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
         private const val KEY_BRIGHTNESS_THRESHOLD = "brightness_threshold"
         private const val KEY_MOTION_THRESHOLD = "motion_threshold"
         private const val KEY_DETECTION_DELAY = "detection_delay"
+
         private const val KEY_SCREEN_OFF_DELAY = "screen_off_delay"
+        private const val KEY_APP_THEME = "app_theme"
         private const val DEFAULT_URL = ""
         private const val CAMERA_PERMISSION_REQUEST = 1001
         private const val SETTINGS_CODE = 2001
@@ -138,6 +142,10 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
             
             // Load settings
             loadSettings()
+            
+            // Apply theme
+            val appTheme = prefs.getInt(KEY_APP_THEME, AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM)
+            AppCompatDelegate.setDefaultNightMode(appTheme)
             
             // Setup views
             setupViews()

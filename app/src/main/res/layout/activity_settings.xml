@@ -114,13 +114,13 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Screen Orientation"
+                        android:text="App Theme"
                         android:textSize="14sp"
                         android:textColor="@color/text_secondary"
                         android:layout_marginBottom="4dp" />
 
                     <Spinner
-                        android:id="@+id/screenRotationSpinner"
+                        android:id="@+id/themeSpinner"
                         android:layout_width="match_parent"
                         android:layout_height="44dp"
                         android:background="@drawable/input_background"
@@ -134,23 +134,45 @@
                     android:orientation="vertical">
 
                     <TextView
-                        android:id="@+id/screenOffValue"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Turn screen off after:"
+                        android:text="Screen Orientation"
                         android:textSize="14sp"
                         android:textColor="@color/text_secondary"
                         android:layout_marginBottom="4dp" />
 
-                    <SeekBar
-                        android:id="@+id/screenOffSeekBar"
+                    <Spinner
+                        android:id="@+id/screenRotationSpinner"
                         android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:max="295"
-                        android:progress="25"
-                        android:paddingStart="0dp"
-                        android:paddingEnd="0dp" />
+                        android:layout_height="44dp"
+                        android:background="@drawable/input_background"
+                        android:popupBackground="@color/surface" />
                 </LinearLayout>
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:layout_marginBottom="20dp">
+
+                <TextView
+                    android:id="@+id/screenOffValue"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Turn screen off after:"
+                    android:textSize="14sp"
+                    android:textColor="@color/text_secondary"
+                    android:layout_marginBottom="4dp" />
+
+                <SeekBar
+                    android:id="@+id/screenOffSeekBar"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:max="295"
+                    android:progress="25"
+                    android:paddingStart="0dp"
+                    android:paddingEnd="0dp" />
             </LinearLayout>
 
             <View android:layout_width="match_parent" android:layout_height="1dp" android:background="@color/divider" android:layout_marginBottom="20dp" />
