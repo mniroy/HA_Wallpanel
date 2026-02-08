@@ -26,7 +26,7 @@ Integrates with physical proximity sensors if available on the device. Supports 
 ## How to Configure
 
 ### Accessing System Settings
-Tap five times sequentially in the top-left corner of the screen to open the configuration menu.
+Swipe from the left edge of the screen to the right to open the configuration menu.
 
 ### Core Settings
 
