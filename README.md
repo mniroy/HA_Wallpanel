@@ -16,6 +16,9 @@ Integrates with physical proximity sensors if available on the device. Supports 
 - Wave to Toggle: Manually switch display state.
 - Dynamic Occupancy: Near/far logic for automatic control.
 
+### Network Camera Stream
+Broadcasts a high-quality MJPEG stream from the device's front camera to the local network. This allows you to integrate the kiosk as a security camera in Home Assistant or other NVR software simultaneously with motion detection.
+
 ### Kiosk Mode and Security
 - Prevents accidental exit via system navigation.
 - Can be configured as the default Home application (Launcher).
@@ -42,6 +45,10 @@ Define the destination address (e.g., Home Assistant dashboard) for the browser.
 - Camera Wake: Toggle camera-based analysis.
 - Detection Intensity: Adjust how significant movement must be to trigger a wake event.
 - Luminance Threshold: Configure the light level requirements for detection.
+
+#### Network Camera Stream
+- **Enable MJPEG Stream**: Toggle the stream on or off.
+- **Stream URL**: Displays the local network address (e.g. `http://192.168.1.50:2971/`) to use in Home Assistant's Generic Camera integration.
 
 #### Proximity Hardware
 - Sensor Availability: View the real-time status of your device's proximity hardware.
