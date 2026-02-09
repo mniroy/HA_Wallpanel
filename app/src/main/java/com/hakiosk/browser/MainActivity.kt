@@ -37,6 +37,11 @@ import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.core.view.WindowCompat
+import android.graphics.ImageFormat
+import android.graphics.Rect
+import android.graphics.YuvImage
+import android.net.wifi.WifiManager
+import java.io.ByteArrayOutputStream
 import java.nio.ByteBuffer
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
@@ -65,7 +70,10 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
         private const val KEY_APP_THEME = "app_theme"
         private const val DEFAULT_URL = ""
         private const val CAMERA_PERMISSION_REQUEST = 1001
+        private const val CAMERA_PERMISSION_REQUEST = 1001
         private const val SETTINGS_CODE = 2001
+        private const val MJPEG_PORT = 2971
+        private const val KEY_CAMERA_STREAM_ENABLED = "camera_stream_enabled"
         
 
         
@@ -94,7 +102,11 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
     private var imageAnalyzer: ImageAnalysis? = null
     private var wakeLock: PowerManager.WakeLock? = null
     private var devicePolicyManager: DevicePolicyManager? = null
+    private var devicePolicyManager: DevicePolicyManager? = null
     private var adminComponent: ComponentName? = null
+    
+    private var mjpegServer: MjpegServer? = null
+    private var cameraStreamEnabled = false
     
     // Sensor manager for proximity
     private var sensorManager: SensorManager? = null
@@ -169,7 +181,7 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
             setupProximitySensor()
             
             // Request camera permission and start camera
-            if (screenControlEnabled || motionDetectionEnabled) {
+            if (screenControlEnabled || motionDetectionEnabled || cameraStreamEnabled) {
                 checkCameraPermission()
             }
             
@@ -227,6 +239,16 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
         
         hideHeader = prefs.getBoolean(KEY_HIDE_HEADER, false)
         hideSidebar = prefs.getBoolean(KEY_HIDE_SIDEBAR, false)
+        
+        val newStreamEnabled = prefs.getBoolean(KEY_CAMERA_STREAM_ENABLED, false)
+        if (newStreamEnabled != cameraStreamEnabled) {
+            cameraStreamEnabled = newStreamEnabled
+            if (cameraStreamEnabled) {
+                startMjpegServer()
+            } else {
+                stopMjpegServer()
+            }
+        }
         
         // Apply screen rotation
         applyScreenRotation()
@@ -531,12 +553,26 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
         }, ContextCompat.getMainExecutor(this))
     }
     
+    private fun startMjpegServer() {
+        if (mjpegServer == null) {
+            mjpegServer = MjpegServer(MJPEG_PORT)
+        }
+        mjpegServer?.start()
+    }
+    
+    private fun stopMjpegServer() {
+        mjpegServer?.stop()
+        // We don't set to null here to allow restart, or we can. 
+        // Logic in startMjpegServer handles null.
+    }
+
     private fun bindCameraAnalysis() {
         val cameraProvider = cameraProvider ?: return
         
         // Build image analyzer with motion detection
         imageAnalyzer = ImageAnalysis.Builder()
-            .setTargetResolution(android.util.Size(320, 240))
+            // HD Resolution (1280x720) for high quality stream
+            .setTargetResolution(android.util.Size(1280, 720))
             .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
             .build()
             .also { analysis ->
@@ -550,6 +586,11 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
                     onMotionDetected = { motionLevel ->
                         if (motionDetectionEnabled) {
                             handleMotionDetected(motionLevel)
+                        }
+                    },
+                    onFrameReady = { jpegData ->
+                        if (cameraStreamEnabled) {
+                            mjpegServer?.updateFrame(jpegData)
                         }
                     }
                 ))
@@ -726,70 +767,129 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
         }
     }
 
-    // Combined Motion and Brightness Analyzer
+    // Combined Motion and Brightness Analyzer with MJPEG Streaming support
     private class MotionBrightnessAnalyzer(
         private val motionThreshold: Double,
         private val onBrightnessChange: (Double) -> Unit,
-        private val onMotionDetected: (Double) -> Unit
+        private val onMotionDetected: (Double) -> Unit,
+        private val onFrameReady: (ByteArray) -> Unit
     ) : ImageAnalysis.Analyzer {
         
-        private var previousFrame: ByteArray? = null
+        private var previousGridValues: DoubleArray? = null
         private var frameCount = 0
-        private val analyzeEveryNFrames = 3 // Analyze every 3rd frame for performance
+        private val analyzeEveryNFrames = 3 
         
-        // Grid-based motion detection (divide frame into regions)
+        // Grid-based motion detection
         private val gridRows = 8
         private val gridCols = 8
-        private var previousGridValues: DoubleArray? = null
         
+        @androidx.annotation.OptIn(androidx.camera.core.ExperimentalGetImage::class)
         override fun analyze(image: ImageProxy) {
             frameCount++
             
-            // Process every Nth frame for performance
-            if (frameCount % analyzeEveryNFrames != 0) {
-                image.close()
-                return
+            // Motion detection logic (on Y plane only for speed)
+            // We still analyze motion periodically
+            val analyzeMotion = (frameCount % analyzeEveryNFrames == 0)
+            
+            // Efficiently convert to NV21 for both motion (Y-plane) and streaming (Full Color)
+            val nv21 = yuv420ToNv21(image)
+
+            // Convert to JPEG for streaming if needed
+            // We do this every frame or every other frame depending on performance needs
+            // Here we do it every frame the camera gives us (usually 30fps) for smooth video
+            if (nv21 != null) {
+                try {
+                    val yuvImage = YuvImage(nv21, ImageFormat.NV21, image.width, image.height, null)
+                    val out = ByteArrayOutputStream()
+                    // Quality 85 is good balance
+                    yuvImage.compressToJpeg(Rect(0, 0, image.width, image.height), 80, out) 
+                    onFrameReady(out.toByteArray())
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error compressing JPEG", e)
+                }
             }
             
-            val buffer: ByteBuffer = image.planes[0].buffer
-            val data = ByteArray(buffer.remaining())
-            buffer.rewind()
-            buffer.get(data)
-            
-            // Calculate brightness
-            val brightness = calculateAverageBrightness(data)
-            onBrightnessChange(brightness)
-            
-            // Calculate motion
-            val motionLevel = calculateMotionLevel(data, image.width, image.height)
-            if (motionLevel > 0) {
-                onMotionDetected(motionLevel)
+            // Perform motion detection on the Y-plane data (first w*h bytes of NV21)
+            if (analyzeMotion && nv21 != null) {
+                // Calculate brightness
+                val brightness = calculateAverageBrightness(nv21, image.width, image.height)
+                onBrightnessChange(brightness)
+                
+                // Calculate motion
+                val motionLevel = calculateMotionLevel(nv21, image.width, image.height)
+                if (motionLevel > 0) {
+                    onMotionDetected(motionLevel)
+                }
             }
-            
-            // Store current frame for next comparison
-            previousFrame = data.clone()
             
             image.close()
         }
         
-        private fun calculateAverageBrightness(data: ByteArray): Double {
-            var sum = 0L
-            // Sample every 4th pixel for performance
-            for (i in data.indices step 4) {
-                sum += (data[i].toInt() and 0xFF)
+        private fun yuv420ToNv21(image: ImageProxy): ByteArray? {
+            val yPlane = image.planes[0]
+            val uPlane = image.planes[1]
+            val vPlane = image.planes[2]
+
+            val yBuffer = yPlane.buffer
+            val uBuffer = uPlane.buffer
+            val vBuffer = vPlane.buffer
+
+            val numPixels = (image.width * image.height)
+            val nv21 = ByteArray(numPixels * 3 / 2) // NV21 is 1.5x size of Y
+
+            // Copy Y
+            yBuffer.rewind()
+            yBuffer.get(nv21, 0, yBuffer.remaining())
+
+            // Get standard NV21 from U and V
+            // NV21 = Y...Y + V U V U...
+            
+            // Simplified fast copy if strides are standard
+            // Note: camera2 API guarantees specific layout for YUV_420_888
+            
+            val uvWidth = image.width / 2
+            val uvHeight = image.height / 2
+            
+            val uPixelStride = uPlane.pixelStride
+            val vPixelStride = vPlane.pixelStride
+
+            // Fast path for pixelStride == 2 (common)
+            if (uPixelStride == 2 && vPixelStride == 2) {
+                var idx = numPixels
+                val uBytes = ByteArray(uBuffer.remaining())
+                val vBytes = ByteArray(vBuffer.remaining())
+                uBuffer.rewind(); uBuffer.get(uBytes)
+                vBuffer.rewind(); vBuffer.get(vBytes)
+                
+                for (i in 0 until (uvWidth * uvHeight)) {
+                    // V first
+                    nv21[idx++] = vBytes[i * 2] // V
+                    // U second
+                    nv21[idx++] = uBytes[i * 2] // U
+                }
+            } else {
+                // Fallback for uncommon strides (slower)
+                // Just use existing Y plane for motion detection and skip color stream
+                // Or implement complex striding loop
+                return null
             }
-            return (sum.toDouble() / (data.size / 4))
+            
+            return nv21
         }
         
-        private fun calculateMotionLevel(currentFrame: ByteArray, width: Int, height: Int): Double {
-            val prevFrame = previousFrame ?: return 0.0
-            
-            if (prevFrame.size != currentFrame.size) {
-                return 0.0
+        private fun calculateAverageBrightness(data: ByteArray, width: Int, height: Int): Double {
+            var sum = 0L
+            val limit = width * height
+            // Sample every 8th pixel for better performance on HD
+            for (i in 0 until limit step 8) {
+                sum += (data[i].toInt() and 0xFF)
             }
-            
-            // Grid-based motion detection for better accuracy
-            val currentGridValues = calculateGridValues(currentFrame, width, height)
+            return (sum.toDouble() / (limit / 8))
+        }
+        
+        private fun calculateMotionLevel(data: ByteArray, width: Int, height: Int): Double {
+            // Need to store previous grid state
+            val currentGridValues = calculateGridValues(data, width, height)
             val prevGridValues = previousGridValues
             
             previousGridValues = currentGridValues
@@ -798,29 +898,27 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
                 return 0.0
             }
             
-            // Calculate motion as average absolute difference between grid cells
             var totalDiff = 0.0
             var significantCells = 0
             
-            for (i in currentGridValues.indices) {
-                val diff = abs(currentGridValues[i] - prevGridValues[i])
-                if (diff > 5) { // Minimum threshold per cell to filter noise
+           for (i in currentGridValues.indices) {
+                val diff = kotlin.math.abs(currentGridValues[i] - prevGridValues[i])
+                if (diff > 5) {
                     totalDiff += diff
                     significantCells++
                 }
             }
             
-            // Motion level is based on how many cells changed and by how much
             val motionLevel = if (significantCells > 0) {
                 (totalDiff / significantCells) * (significantCells.toDouble() / (gridRows * gridCols))
             } else {
                 0.0
             }
             
-            return motionLevel * 10 // Scale up for easier threshold configuration
+            return motionLevel * 10
         }
         
-        private fun calculateGridValues(frame: ByteArray, width: Int, height: Int): DoubleArray {
+        private fun calculateGridValues(data: ByteArray, width: Int, height: Int): DoubleArray {
             val gridValues = DoubleArray(gridRows * gridCols)
             val cellWidth = width / gridCols
             val cellHeight = height / gridRows
@@ -835,12 +933,12 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
                     val startX = col * cellWidth
                     val endX = minOf((col + 1) * cellWidth, width)
                     
-                    // Sample pixels in this cell
+                    // Sparse sampling for performance on HD
                     for (y in startY until endY step 4) {
                         for (x in startX until endX step 4) {
                             val index = y * width + x
-                            if (index < frame.size) {
-                                sum += (frame[index].toInt() and 0xFF)
+                            if (index < data.size) {
+                                sum += (data[index].toInt() and 0xFF)
                                 count++
                             }
                         }
@@ -880,7 +978,7 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
             loadSettings()
             
             // Restart camera if screen control settings changed
-            if (screenControlEnabled || motionDetectionEnabled) {
+            if (screenControlEnabled || motionDetectionEnabled || cameraStreamEnabled) {
                 checkCameraPermission()
             } else {
                 stopCamera()
@@ -919,7 +1017,7 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
             registerProximitySensor()
         }
         
-        if ((screenControlEnabled || motionDetectionEnabled) && cameraProvider == null) {
+        if ((screenControlEnabled || motionDetectionEnabled || cameraStreamEnabled) && cameraProvider == null) {
             checkCameraPermission()
         }
         
@@ -952,5 +1050,6 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
                 it.release()
             }
         }
+        stopMjpegServer()
     }
 }

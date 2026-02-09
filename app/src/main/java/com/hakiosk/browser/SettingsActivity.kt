@@ -6,6 +6,7 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
+import android.net.wifi.WifiManager
 import android.os.Bundle
 import android.view.View
 import android.widget.AdapterView
@@ -39,6 +40,8 @@ class SettingsActivity : AppCompatActivity() {
         private const val KEY_HIDE_HEADER = "hide_header"
         private const val KEY_HIDE_SIDEBAR = "hide_sidebar"
         private const val KEY_PIN_CODE = "pin_code"
+        private const val KEY_PIN_CODE = "pin_code"
+        private const val KEY_CAMERA_STREAM_ENABLED = "camera_stream_enabled"
         private const val DEFAULT_URL = ""
         private const val DEVICE_ADMIN_REQUEST = 1001
         
@@ -63,6 +66,12 @@ class SettingsActivity : AppCompatActivity() {
     private lateinit var proximityModeSpinner: Spinner
     private lateinit var proximityModeContainer: LinearLayout
     private lateinit var proximitySensorStatus: TextView
+    
+    private lateinit var cameraStreamSwitch: Switch
+    private lateinit var streamUrlContainer: LinearLayout
+    private lateinit var streamUrlValue: TextView
+    
+    private lateinit var themeSpinner: Spinner
     private lateinit var themeSpinner: Spinner
     private lateinit var screenRotationSpinner: Spinner
     private lateinit var brightnessSeekBar: SeekBar
@@ -99,7 +108,13 @@ class SettingsActivity : AppCompatActivity() {
         proximitySwitch = findViewById(R.id.proximitySwitch)
         proximityModeSpinner = findViewById(R.id.proximityModeSpinner)
         proximityModeContainer = findViewById(R.id.proximityModeContainer)
+        proximityModeContainer = findViewById(R.id.proximityModeContainer)
         proximitySensorStatus = findViewById(R.id.proximitySensorStatus)
+        
+        cameraStreamSwitch = findViewById(R.id.cameraStreamSwitch)
+        streamUrlContainer = findViewById(R.id.streamUrlContainer)
+        streamUrlValue = findViewById(R.id.streamUrlValue)
+        
         themeSpinner = findViewById(R.id.themeSpinner)
         screenRotationSpinner = findViewById(R.id.screenRotationSpinner)
         brightnessSeekBar = findViewById(R.id.brightnessSeekBar)
@@ -159,6 +174,14 @@ class SettingsActivity : AppCompatActivity() {
         // Show/hide proximity mode based on switch
         proximitySwitch.setOnCheckedChangeListener { _, isChecked ->
             proximityModeContainer.visibility = if (isChecked && hasProximitySensor) View.VISIBLE else View.GONE
+        }
+        
+        // Show/hide stream URL based on switch
+        cameraStreamSwitch.setOnCheckedChangeListener { _, isChecked ->
+            streamUrlContainer.visibility = if (isChecked) View.VISIBLE else View.GONE
+            if (isChecked) {
+                updateStreamUrl()
+            }
         }
         
         // Brightness threshold seekbar (0-100)
@@ -239,6 +262,13 @@ class SettingsActivity : AppCompatActivity() {
         hideSidebarSwitch.isChecked = prefs.getBoolean(KEY_HIDE_SIDEBAR, false)
         proximitySwitch.isChecked = prefs.getBoolean(KEY_PROXIMITY_ENABLED, true)
         
+        val streamEnabled = prefs.getBoolean(KEY_CAMERA_STREAM_ENABLED, false)
+        cameraStreamSwitch.isChecked = streamEnabled
+        streamUrlContainer.visibility = if (streamEnabled) View.VISIBLE else View.GONE
+        if (streamEnabled) {
+            updateStreamUrl()
+        }
+        
         val proximityMode = prefs.getInt(KEY_PROXIMITY_MODE, PROXIMITY_MODE_WAVE_WAKE)
         proximityModeSpinner.setSelection(proximityMode)
         
@@ -318,6 +348,7 @@ class SettingsActivity : AppCompatActivity() {
             putBoolean(KEY_MOTION_DETECTION_ENABLED, motionDetectionSwitch.isChecked)
             putBoolean(KEY_HIDE_HEADER, hideHeaderSwitch.isChecked)
             putBoolean(KEY_HIDE_SIDEBAR, hideSidebarSwitch.isChecked)
+            putBoolean(KEY_CAMERA_STREAM_ENABLED, cameraStreamSwitch.isChecked)
             putBoolean(KEY_PROXIMITY_ENABLED, proximitySwitch.isChecked)
             putInt(KEY_PROXIMITY_MODE, proximityModeSpinner.selectedItemPosition)
             putInt(KEY_SCREEN_ROTATION, screenRotationSpinner.selectedItemPosition)
@@ -388,5 +419,26 @@ class SettingsActivity : AppCompatActivity() {
             }
             .setNegativeButton("Discard", null)
             .show()
+    }
+    
+    private fun updateStreamUrl() {
+        val ip = getIpAddress()
+        streamUrlValue.text = "http://$ip:2971/"
+    }
+    
+    private fun getIpAddress(): String {
+        try {
+            val wifiManager = applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
+            val ipAddress = wifiManager.connectionInfo.ipAddress
+            return String.format(
+                "%d.%d.%d.%d",
+                (ipAddress and 0xff),
+                (ipAddress shr 8 and 0xff),
+                (ipAddress shr 16 and 0xff),
+                (ipAddress shr 24 and 0xff)
+            )
+        } catch (e: Exception) {
+            return "0.0.0.0"
+        }
     }
 }
