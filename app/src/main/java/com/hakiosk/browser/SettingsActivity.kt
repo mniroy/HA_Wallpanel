@@ -40,7 +40,7 @@ class SettingsActivity : AppCompatActivity() {
         private const val KEY_HIDE_HEADER = "hide_header"
         private const val KEY_HIDE_SIDEBAR = "hide_sidebar"
         private const val KEY_PIN_CODE = "pin_code"
-        private const val KEY_PIN_CODE = "pin_code"
+
         private const val KEY_CAMERA_STREAM_ENABLED = "camera_stream_enabled"
         private const val DEFAULT_URL = ""
         private const val DEVICE_ADMIN_REQUEST = 1001
@@ -72,7 +72,7 @@ class SettingsActivity : AppCompatActivity() {
     private lateinit var streamUrlValue: TextView
     
     private lateinit var themeSpinner: Spinner
-    private lateinit var themeSpinner: Spinner
+
     private lateinit var screenRotationSpinner: Spinner
     private lateinit var brightnessSeekBar: SeekBar
     private lateinit var brightnessValue: TextView

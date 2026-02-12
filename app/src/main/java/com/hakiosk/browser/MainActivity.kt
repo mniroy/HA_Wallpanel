@@ -70,7 +70,7 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
         private const val KEY_APP_THEME = "app_theme"
         private const val DEFAULT_URL = ""
         private const val CAMERA_PERMISSION_REQUEST = 1001
-        private const val CAMERA_PERMISSION_REQUEST = 1001
+
         private const val SETTINGS_CODE = 2001
         private const val MJPEG_PORT = 2971
         private const val KEY_CAMERA_STREAM_ENABLED = "camera_stream_enabled"
@@ -102,7 +102,7 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
     private var imageAnalyzer: ImageAnalysis? = null
     private var wakeLock: PowerManager.WakeLock? = null
     private var devicePolicyManager: DevicePolicyManager? = null
-    private var devicePolicyManager: DevicePolicyManager? = null
+
     private var adminComponent: ComponentName? = null
     
     private var mjpegServer: MjpegServer? = null
