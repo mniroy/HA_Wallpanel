@@ -74,8 +74,8 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
         private const val SETTINGS_CODE = 2001
         private const val MJPEG_PORT = 2971
         private const val KEY_CAMERA_STREAM_ENABLED = "camera_stream_enabled"
-        
-
+        private const val KEY_AUTO_REFRESH_INTERVAL = "auto_refresh_interval"
+        private const val DEFAULT_AUTO_REFRESH_INTERVAL = 3600000L // 1 hour default
         
         // Default motion detection settings
         private const val DEFAULT_MOTION_THRESHOLD = 15.0
@@ -124,6 +124,7 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
     private var motionThreshold = DEFAULT_MOTION_THRESHOLD
     private var detectionDelay = 500L
     private var screenOffDelay = DEFAULT_SCREEN_OFF_DELAY
+    private var autoRefreshInterval = DEFAULT_AUTO_REFRESH_INTERVAL
     private var lastToggleTime = 0L
     private var lastMotionTime = 0L
 
@@ -143,6 +144,29 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
             Log.d(TAG, "No activity detected for ${screenOffDelay}ms, terminating display session.")
             turnScreenOff()
         }
+    }
+
+    // Scheduled auto page refresh runnable
+    private val autoRefreshRunnable = Runnable {
+        Log.d(TAG, "Executing scheduled auto refresh of WebView")
+        try {
+            webView.reload()
+        } catch (e: Exception) {
+            Log.e(TAG, "Error reloading webView during auto refresh", e)
+        }
+        scheduleAutoRefresh()
+    }
+
+    private fun scheduleAutoRefresh() {
+        mainHandler.removeCallbacks(autoRefreshRunnable)
+        if (autoRefreshInterval > 0) {
+            mainHandler.postDelayed(autoRefreshRunnable, autoRefreshInterval)
+            Log.d(TAG, "Scheduled auto page refresh in ${autoRefreshInterval}ms")
+        }
+    }
+
+    private fun cancelAutoRefresh() {
+        mainHandler.removeCallbacks(autoRefreshRunnable)
     }
     
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -236,6 +260,7 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
         motionThreshold = prefs.getFloat(KEY_MOTION_THRESHOLD, DEFAULT_MOTION_THRESHOLD.toFloat()).toDouble()
         detectionDelay = prefs.getLong(KEY_DETECTION_DELAY, 500L)
         screenOffDelay = prefs.getLong(KEY_SCREEN_OFF_DELAY, DEFAULT_SCREEN_OFF_DELAY)
+        autoRefreshInterval = prefs.getLong(KEY_AUTO_REFRESH_INTERVAL, DEFAULT_AUTO_REFRESH_INTERVAL)
         
         hideHeader = prefs.getBoolean(KEY_HIDE_HEADER, false)
         hideSidebar = prefs.getBoolean(KEY_HIDE_SIDEBAR, false)
@@ -249,6 +274,9 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
                 stopMjpegServer()
             }
         }
+        
+        // Schedule auto refresh based on updated interval
+        scheduleAutoRefresh()
         
         // Apply screen rotation
         applyScreenRotation()
@@ -419,7 +447,11 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
         webView.webViewClient = object : WebViewClient() {
             override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) {
                 super.onPageStarted(view, url, favicon)
-                progressBar.visibility = View.VISIBLE
+                if (isScreenOn) {
+                    progressBar.visibility = View.VISIBLE
+                } else {
+                    progressBar.visibility = View.GONE
+                }
             }
             
             override fun onPageFinished(view: WebView?, url: String?) {
@@ -454,12 +486,33 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
                     progressBar.visibility = View.GONE
                 }
             }
+
+            @SuppressLint("WebViewClientOnReceivedSslError")
+            override fun onReceivedSslError(view: WebView?, handler: SslErrorHandler?, error: android.net.http.SslError?) {
+                Log.w(TAG, "SSL error: ${error?.primaryError}. Proceeding for local Home Assistant setup.")
+                handler?.proceed()
+            }
+
+            override fun onRenderProcessGone(view: WebView?, detail: RenderProcessGoneDetail?): Boolean {
+                Log.e(TAG, "WebView render process gone. Did it crash? ${detail?.didCrash()}")
+                try {
+                    (view?.parent as? android.view.ViewGroup)?.removeView(view)
+                    view?.destroy()
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error destroying gone webView", e)
+                }
+                setupWebView()
+                loadHomeUrl()
+                return true
+            }
         }
         
         webView.webChromeClient = object : WebChromeClient() {
             override fun onProgressChanged(view: WebView?, newProgress: Int) {
                 super.onProgressChanged(view, newProgress)
-                progressBar.progress = newProgress
+                if (isScreenOn) {
+                    progressBar.progress = newProgress
+                }
             }
             
             // Handle file chooser
@@ -502,7 +555,7 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
             landingPage.visibility = View.VISIBLE
         } else {
             landingPage.visibility = View.GONE
-            webView.visibility = View.VISIBLE
+            webView.visibility = if (isScreenOn) View.VISIBLE else View.INVISIBLE
             webView.loadUrl(url)
         }
     }
@@ -578,6 +631,7 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
             .also { analysis ->
                 analysis.setAnalyzer(cameraExecutor, MotionBrightnessAnalyzer(
                     motionThreshold = motionThreshold,
+                    isStreaming = cameraStreamEnabled,
                     onBrightnessChange = { brightness ->
                         if (screenControlEnabled) {
                             handleBrightnessChange(brightness)
@@ -609,7 +663,7 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
             Log.e(TAG, "Camera binding failed", e)
         }
     }
-    
+
     private fun handleBrightnessChange(brightness: Double) {
         // Feature disabled: Camera Cover logic removed for wall-mount optimization.
         lastBrightness = brightness
@@ -660,15 +714,18 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
             params.screenBrightness = 0.01f
             window.attributes = params
             
-            // Hide the WebView
+            // Hide progress bar and WebView while screen is off
+            progressBar.visibility = View.GONE
             webView.visibility = View.INVISIBLE
             
-            // Try to lock screen if we have device admin
-            if (devicePolicyManager?.isAdminActive(adminComponent!!) == true) {
-                try {
-                    devicePolicyManager?.lockNow()
-                } catch (e: Exception) {
-                    Log.e(TAG, "Failed to lock screen", e)
+            // Try to lock screen if we have device admin safely without NPE
+            adminComponent?.let { admin ->
+                if (devicePolicyManager?.isAdminActive(admin) == true) {
+                    try {
+                        devicePolicyManager?.lockNow()
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Failed to lock screen", e)
+                    }
                 }
             }
         }
@@ -689,9 +746,13 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
             // Show the WebView
             webView.visibility = View.VISIBLE
             
-            // Acquire wake lock to turn on screen
+            // Acquire wake lock to turn on screen safely
             if (wakeLock?.isHeld == false) {
-                wakeLock?.acquire(1000)
+                try {
+                    wakeLock?.acquire(1000)
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error acquiring wakeLock", e)
+                }
             }
             
             // Reset screen off timer
@@ -734,7 +795,7 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
     private inner class SwipeGestureListener : GestureDetector.SimpleOnGestureListener() {
         private val SWIPE_THRESHOLD = 50
         private val SWIPE_VELOCITY_THRESHOLD = 50
-        private val EDGE_THRESHOLD_PX = 100 // Detect if swipe starts within 100px of the edge
+        private val edgeThresholdDp = 48.0f // 48dp touch target threshold across all screen densities
 
         override fun onDown(e: MotionEvent): Boolean {
             return true
@@ -750,13 +811,14 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
             
             val diffY = e2.y - e1.y
             val diffX = e2.x - e1.x
+            val edgeThresholdPx = (edgeThresholdDp * resources.displayMetrics.density)
             
             if (abs(diffX) > abs(diffY)) {
                 if (abs(diffX) > SWIPE_THRESHOLD && abs(velocityX) > SWIPE_VELOCITY_THRESHOLD) {
                     if (diffX > 0) {
                         // Swipe Right (Left to Right)
                         // Check if swipe started from the left edge
-                        if (e1.x < EDGE_THRESHOLD_PX) {
+                        if (e1.x < edgeThresholdPx) {
                             openSettings()
                             return true
                         }
@@ -770,6 +832,7 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
     // Combined Motion and Brightness Analyzer with MJPEG Streaming support
     private class MotionBrightnessAnalyzer(
         private val motionThreshold: Double,
+        private val isStreaming: Boolean,
         private val onBrightnessChange: (Double) -> Unit,
         private val onMotionDetected: (Double) -> Unit,
         private val onFrameReady: (ByteArray) -> Unit
@@ -782,47 +845,57 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
         // Grid-based motion detection
         private val gridRows = 8
         private val gridCols = 8
+
+        // Reusable buffers to avoid per-frame allocations during MJPEG streaming
+        private var cachedNv21: ByteArray? = null
+        private var cachedUBytes: ByteArray? = null
+        private var cachedVBytes: ByteArray? = null
         
         @androidx.annotation.OptIn(androidx.camera.core.ExperimentalGetImage::class)
         override fun analyze(image: ImageProxy) {
-            frameCount++
-            
-            // Motion detection logic (on Y plane only for speed)
-            // We still analyze motion periodically
-            val analyzeMotion = (frameCount % analyzeEveryNFrames == 0)
-            
-            // Efficiently convert to NV21 for both motion (Y-plane) and streaming (Full Color)
-            val nv21 = yuv420ToNv21(image)
+            try {
+                frameCount++
+                val analyzeMotion = (frameCount % analyzeEveryNFrames == 0)
 
-            // Convert to JPEG for streaming if needed
-            // We do this every frame or every other frame depending on performance needs
-            // Here we do it every frame the camera gives us (usually 30fps) for smooth video
-            if (nv21 != null) {
-                try {
-                    val yuvImage = YuvImage(nv21, ImageFormat.NV21, image.width, image.height, null)
-                    val out = ByteArrayOutputStream()
-                    // Quality 85 is good balance
-                    yuvImage.compressToJpeg(Rect(0, 0, image.width, image.height), 80, out) 
-                    onFrameReady(out.toByteArray())
-                } catch (e: Exception) {
-                    Log.e(TAG, "Error compressing JPEG", e)
+                if (isStreaming) {
+                    val nv21 = yuv420ToNv21(image)
+                    if (nv21 != null) {
+                        try {
+                            val yuvImage = YuvImage(nv21, ImageFormat.NV21, image.width, image.height, null)
+                            val out = ByteArrayOutputStream()
+                            yuvImage.compressToJpeg(Rect(0, 0, image.width, image.height), 80, out)
+                            onFrameReady(out.toByteArray())
+                        } catch (e: Exception) {
+                            Log.e(TAG, "Error compressing JPEG", e)
+                        }
+                    }
+                    if (analyzeMotion && nv21 != null) {
+                        val brightness = calculateAverageBrightness(nv21, image.width, image.height)
+                        onBrightnessChange(brightness)
+                        val motionLevel = calculateMotionLevel(nv21, image.width, image.height)
+                        if (motionLevel > 0) {
+                            onMotionDetected(motionLevel)
+                        }
+                    }
+                } else {
+                    // Fast zero-allocation path when streaming is disabled: analyze Y plane directly
+                    if (analyzeMotion) {
+                        val yBuffer = image.planes[0].buffer
+                        val width = image.width
+                        val height = image.height
+                        val brightness = calculateAverageBrightnessFromBuffer(yBuffer, width, height)
+                        onBrightnessChange(brightness)
+                        val motionLevel = calculateMotionLevelFromBuffer(yBuffer, width, height)
+                        if (motionLevel > 0) {
+                            onMotionDetected(motionLevel)
+                        }
+                    }
                 }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error during camera frame analysis", e)
+            } finally {
+                image.close()
             }
-            
-            // Perform motion detection on the Y-plane data (first w*h bytes of NV21)
-            if (analyzeMotion && nv21 != null) {
-                // Calculate brightness
-                val brightness = calculateAverageBrightness(nv21, image.width, image.height)
-                onBrightnessChange(brightness)
-                
-                // Calculate motion
-                val motionLevel = calculateMotionLevel(nv21, image.width, image.height)
-                if (motionLevel > 0) {
-                    onMotionDetected(motionLevel)
-                }
-            }
-            
-            image.close()
         }
         
         private fun yuv420ToNv21(image: ImageProxy): ByteArray? {
@@ -835,18 +908,17 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
             val vBuffer = vPlane.buffer
 
             val numPixels = (image.width * image.height)
-            val nv21 = ByteArray(numPixels * 3 / 2) // NV21 is 1.5x size of Y
+            val nv21Size = numPixels * 3 / 2
+            
+            if (cachedNv21 == null || cachedNv21!!.size != nv21Size) {
+                cachedNv21 = ByteArray(nv21Size)
+            }
+            val nv21 = cachedNv21!!
 
             // Copy Y
             yBuffer.rewind()
             yBuffer.get(nv21, 0, yBuffer.remaining())
 
-            // Get standard NV21 from U and V
-            // NV21 = Y...Y + V U V U...
-            
-            // Simplified fast copy if strides are standard
-            // Note: camera2 API guarantees specific layout for YUV_420_888
-            
             val uvWidth = image.width / 2
             val uvHeight = image.height / 2
             
@@ -856,21 +928,28 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
             // Fast path for pixelStride == 2 (common)
             if (uPixelStride == 2 && vPixelStride == 2) {
                 var idx = numPixels
-                val uBytes = ByteArray(uBuffer.remaining())
-                val vBytes = ByteArray(vBuffer.remaining())
-                uBuffer.rewind(); uBuffer.get(uBytes)
-                vBuffer.rewind(); vBuffer.get(vBytes)
+                val uRemaining = uBuffer.remaining()
+                val vRemaining = vBuffer.remaining()
                 
-                for (i in 0 until (uvWidth * uvHeight)) {
-                    // V first
+                if (cachedUBytes == null || cachedUBytes!!.size != uRemaining) {
+                    cachedUBytes = ByteArray(uRemaining)
+                }
+                if (cachedVBytes == null || cachedVBytes!!.size != vRemaining) {
+                    cachedVBytes = ByteArray(vRemaining)
+                }
+                
+                val uBytes = cachedUBytes!!
+                val vBytes = cachedVBytes!!
+                
+                uBuffer.rewind(); uBuffer.get(uBytes, 0, uRemaining)
+                vBuffer.rewind(); vBuffer.get(vBytes, 0, vRemaining)
+                
+                val totalUvPixels = uvWidth * uvHeight
+                for (i in 0 until totalUvPixels) {
                     nv21[idx++] = vBytes[i * 2] // V
-                    // U second
                     nv21[idx++] = uBytes[i * 2] // U
                 }
             } else {
-                // Fallback for uncommon strides (slower)
-                // Just use existing Y plane for motion detection and skip color stream
-                // Or implement complex striding loop
                 return null
             }
             
@@ -880,28 +959,33 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
         private fun calculateAverageBrightness(data: ByteArray, width: Int, height: Int): Double {
             var sum = 0L
             val limit = width * height
-            // Sample every 8th pixel for better performance on HD
             for (i in 0 until limit step 8) {
                 sum += (data[i].toInt() and 0xFF)
             }
             return (sum.toDouble() / (limit / 8))
         }
+
+        private fun calculateAverageBrightnessFromBuffer(yBuffer: ByteBuffer, width: Int, height: Int): Double {
+            var sum = 0L
+            val limit = width * height
+            var i = 0
+            while (i < limit) {
+                sum += (yBuffer.get(i).toInt() and 0xFF)
+                i += 8
+            }
+            return (sum.toDouble() / (limit / 8))
+        }
         
         private fun calculateMotionLevel(data: ByteArray, width: Int, height: Int): Double {
-            // Need to store previous grid state
             val currentGridValues = calculateGridValues(data, width, height)
             val prevGridValues = previousGridValues
-            
             previousGridValues = currentGridValues
-            
-            if (prevGridValues == null) {
-                return 0.0
-            }
+            if (prevGridValues == null) return 0.0
             
             var totalDiff = 0.0
             var significantCells = 0
             
-           for (i in currentGridValues.indices) {
+            for (i in currentGridValues.indices) {
                 val diff = kotlin.math.abs(currentGridValues[i] - prevGridValues[i])
                 if (diff > 5) {
                     totalDiff += diff
@@ -914,7 +998,31 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
             } else {
                 0.0
             }
+            return motionLevel * 10
+        }
+
+        private fun calculateMotionLevelFromBuffer(yBuffer: ByteBuffer, width: Int, height: Int): Double {
+            val currentGridValues = calculateGridValuesFromBuffer(yBuffer, width, height)
+            val prevGridValues = previousGridValues
+            previousGridValues = currentGridValues
+            if (prevGridValues == null) return 0.0
             
+            var totalDiff = 0.0
+            var significantCells = 0
+            
+            for (i in currentGridValues.indices) {
+                val diff = kotlin.math.abs(currentGridValues[i] - prevGridValues[i])
+                if (diff > 5) {
+                    totalDiff += diff
+                    significantCells++
+                }
+            }
+            
+            val motionLevel = if (significantCells > 0) {
+                (totalDiff / significantCells) * (significantCells.toDouble() / (gridRows * gridCols))
+            } else {
+                0.0
+            }
             return motionLevel * 10
         }
         
@@ -933,12 +1041,43 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
                     val startX = col * cellWidth
                     val endX = minOf((col + 1) * cellWidth, width)
                     
-                    // Sparse sampling for performance on HD
                     for (y in startY until endY step 4) {
                         for (x in startX until endX step 4) {
                             val index = y * width + x
                             if (index < data.size) {
                                 sum += (data[index].toInt() and 0xFF)
+                                count++
+                            }
+                        }
+                    }
+                    
+                    gridValues[row * gridCols + col] = if (count > 0) sum.toDouble() / count else 0.0
+                }
+            }
+            
+            return gridValues
+        }
+
+        private fun calculateGridValuesFromBuffer(yBuffer: ByteBuffer, width: Int, height: Int): DoubleArray {
+            val gridValues = DoubleArray(gridRows * gridCols)
+            val cellWidth = width / gridCols
+            val cellHeight = height / gridRows
+            
+            for (row in 0 until gridRows) {
+                for (col in 0 until gridCols) {
+                    var sum = 0L
+                    var count = 0
+                    
+                    val startY = row * cellHeight
+                    val endY = minOf((row + 1) * cellHeight, height)
+                    val startX = col * cellWidth
+                    val endX = minOf((col + 1) * cellWidth, width)
+                    
+                    for (y in startY until endY step 4) {
+                        for (x in startX until endX step 4) {
+                            val index = y * width + x
+                            if (index < yBuffer.capacity()) {
+                                sum += (yBuffer.get(index).toInt() and 0xFF)
                                 count++
                             }
                         }
@@ -1042,6 +1181,7 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
     
     override fun onDestroy() {
         super.onDestroy()
+        cancelAutoRefresh()
         mainHandler.removeCallbacks(screenOffRunnable)
         unregisterProximitySensor()
         cameraExecutor.shutdown()

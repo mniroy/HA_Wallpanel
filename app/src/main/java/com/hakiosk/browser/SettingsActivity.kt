@@ -40,6 +40,8 @@ class SettingsActivity : AppCompatActivity() {
         private const val KEY_HIDE_HEADER = "hide_header"
         private const val KEY_HIDE_SIDEBAR = "hide_sidebar"
         private const val KEY_PIN_CODE = "pin_code"
+        const val KEY_AUTO_REFRESH_INTERVAL = "auto_refresh_interval"
+        const val DEFAULT_AUTO_REFRESH_INTERVAL = 3600000L // 1 hour default
 
         private const val KEY_CAMERA_STREAM_ENABLED = "camera_stream_enabled"
         private const val DEFAULT_URL = ""
@@ -54,6 +56,17 @@ class SettingsActivity : AppCompatActivity() {
         const val ROTATION_PORTRAIT = 0
         const val ROTATION_LANDSCAPE = 1
         const val ROTATION_AUTO = 2
+
+        val AUTO_REFRESH_VALUES = arrayOf(
+            0L,          // Disabled
+            900000L,     // 15 min
+            1800000L,    // 30 min
+            3600000L,    // 1 hour
+            7200000L,    // 2 hours
+            21600000L,   // 6 hours
+            43200000L,   // 12 hours
+            86400000L    // 24 hours
+        )
     }
     
     private lateinit var prefs: SharedPreferences
@@ -72,6 +85,7 @@ class SettingsActivity : AppCompatActivity() {
     private lateinit var streamUrlValue: TextView
     
     private lateinit var themeSpinner: Spinner
+    private lateinit var autoRefreshSpinner: Spinner
 
     private lateinit var screenRotationSpinner: Spinner
     private lateinit var brightnessSeekBar: SeekBar
@@ -108,7 +122,6 @@ class SettingsActivity : AppCompatActivity() {
         proximitySwitch = findViewById(R.id.proximitySwitch)
         proximityModeSpinner = findViewById(R.id.proximityModeSpinner)
         proximityModeContainer = findViewById(R.id.proximityModeContainer)
-        proximityModeContainer = findViewById(R.id.proximityModeContainer)
         proximitySensorStatus = findViewById(R.id.proximitySensorStatus)
         
         cameraStreamSwitch = findViewById(R.id.cameraStreamSwitch)
@@ -116,6 +129,7 @@ class SettingsActivity : AppCompatActivity() {
         streamUrlValue = findViewById(R.id.streamUrlValue)
         
         themeSpinner = findViewById(R.id.themeSpinner)
+        autoRefreshSpinner = findViewById(R.id.autoRefreshSpinner)
         screenRotationSpinner = findViewById(R.id.screenRotationSpinner)
         brightnessSeekBar = findViewById(R.id.brightnessSeekBar)
         brightnessValue = findViewById(R.id.brightnessValue)
@@ -150,6 +164,21 @@ class SettingsActivity : AppCompatActivity() {
         val themeAdapter = ArrayAdapter(this, android.R.layout.simple_spinner_item, themeModes)
         themeAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
         themeSpinner.adapter = themeAdapter
+        
+        // Setup auto refresh spinner
+        val autoRefreshModes = arrayOf(
+            "Disabled",
+            "Every 15 minutes",
+            "Every 30 minutes",
+            "Every 1 hour (Default)",
+            "Every 2 hours",
+            "Every 6 hours",
+            "Every 12 hours",
+            "Every 24 hours"
+        )
+        val autoRefreshAdapter = ArrayAdapter(this, android.R.layout.simple_spinner_item, autoRefreshModes)
+        autoRefreshAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+        autoRefreshSpinner.adapter = autoRefreshAdapter
         
         // Setup proximity mode spinner
         val proximityModes = arrayOf(
@@ -278,6 +307,10 @@ class SettingsActivity : AppCompatActivity() {
             AppCompatDelegate.MODE_NIGHT_YES -> 2
             else -> 0
         })
+
+        val autoRefreshInterval = prefs.getLong(KEY_AUTO_REFRESH_INTERVAL, DEFAULT_AUTO_REFRESH_INTERVAL)
+        val autoRefreshIndex = AUTO_REFRESH_VALUES.indexOf(autoRefreshInterval).let { if (it >= 0) it else 3 }
+        autoRefreshSpinner.setSelection(autoRefreshIndex)
         
         val screenRotation = prefs.getInt(KEY_SCREEN_ROTATION, ROTATION_PORTRAIT)
         screenRotationSpinner.setSelection(screenRotation)
@@ -322,9 +355,9 @@ class SettingsActivity : AppCompatActivity() {
     
     private fun saveSettings() {
         val url = urlInput.text.toString().trim()
-        // Allow empty URL to show landing page
+        // Allow empty URL to show landing page (default to http:// for standard local HA setups if unprovided)
         val finalUrl = if (url.isNotEmpty() && !url.startsWith("http://") && !url.startsWith("https://")) {
-            "https://$url"
+            "http://$url"
         } else {
             url
         }
@@ -342,6 +375,8 @@ class SettingsActivity : AppCompatActivity() {
             2 -> AppCompatDelegate.MODE_NIGHT_YES
             else -> AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM
         }
+
+        val selectedAutoRefreshInterval = AUTO_REFRESH_VALUES.getOrElse(autoRefreshSpinner.selectedItemPosition) { DEFAULT_AUTO_REFRESH_INTERVAL }
         
         prefs.edit().apply {
             putString(KEY_HOME_URL, finalUrl)
@@ -357,6 +392,7 @@ class SettingsActivity : AppCompatActivity() {
             putLong(KEY_DETECTION_DELAY, (delaySeekBar.progress + 100).toLong())
             putLong(KEY_SCREEN_OFF_DELAY, screenOffDelayMs)
             putInt(KEY_APP_THEME, selectedTheme)
+            putLong(KEY_AUTO_REFRESH_INTERVAL, selectedAutoRefreshInterval)
             putString(KEY_PIN_CODE, pinInput.text.toString())
             apply()
         }

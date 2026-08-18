@@ -104,12 +104,17 @@ class MjpegServer(private val port: Int) {
     }
 
     private fun closeClient(socket: Socket) {
+        val outputStream = clients.remove(socket)
         try {
-            socket.close()
-        } catch (e: IOException) {
+            outputStream?.close()
+        } catch (e: Exception) {
             // Ignore
         }
-        clients.remove(socket)
+        try {
+            socket.close()
+        } catch (e: Exception) {
+            // Ignore
+        }
     }
 
     fun stop() {
