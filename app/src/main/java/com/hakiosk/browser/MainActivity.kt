@@ -90,6 +90,7 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
         const val ROTATION_PORTRAIT = 0
         const val ROTATION_LANDSCAPE = 1
         const val ROTATION_AUTO = 2
+        private const val SCREEN_STATE_CHANGE_COOLDOWN_MS = 2500L
     }
     
     private lateinit var webView: WebView
@@ -100,6 +101,7 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
     
     private var cameraProvider: ProcessCameraProvider? = null
     private var imageAnalyzer: ImageAnalysis? = null
+    private var motionAnalyzer: MotionBrightnessAnalyzer? = null
     private var wakeLock: PowerManager.WakeLock? = null
     private var devicePolicyManager: DevicePolicyManager? = null
 
@@ -127,6 +129,7 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
     private var autoRefreshInterval = DEFAULT_AUTO_REFRESH_INTERVAL
     private var lastToggleTime = 0L
     private var lastMotionTime = 0L
+    private var lastScreenStateChangeTime = 0L
 
     private var lastProximityTime = 0L
     private var lastProximityNear = false
@@ -325,6 +328,11 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
         if (!proximityEnabled) return
         
         val currentTime = System.currentTimeMillis()
+        
+        // Ignore proximity events during screen state transition cooldown
+        if (currentTime - lastScreenStateChangeTime < SCREEN_STATE_CHANGE_COOLDOWN_MS) {
+            return
+        }
         
         // Debounce proximity events
         if (currentTime - lastProximityTime < detectionDelay) {
@@ -622,6 +630,27 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
     private fun bindCameraAnalysis() {
         val cameraProvider = cameraProvider ?: return
         
+        val analyzer = MotionBrightnessAnalyzer(
+            motionThreshold = motionThreshold,
+            isStreaming = cameraStreamEnabled,
+            onBrightnessChange = { brightness ->
+                if (screenControlEnabled) {
+                    handleBrightnessChange(brightness)
+                }
+            },
+            onMotionDetected = { motionLevel ->
+                if (motionDetectionEnabled) {
+                    handleMotionDetected(motionLevel)
+                }
+            },
+            onFrameReady = { jpegData ->
+                if (cameraStreamEnabled) {
+                    mjpegServer?.updateFrame(jpegData)
+                }
+            }
+        )
+        motionAnalyzer = analyzer
+
         // Build image analyzer with motion detection
         imageAnalyzer = ImageAnalysis.Builder()
             // HD Resolution (1280x720) for high quality stream
@@ -629,25 +658,7 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
             .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
             .build()
             .also { analysis ->
-                analysis.setAnalyzer(cameraExecutor, MotionBrightnessAnalyzer(
-                    motionThreshold = motionThreshold,
-                    isStreaming = cameraStreamEnabled,
-                    onBrightnessChange = { brightness ->
-                        if (screenControlEnabled) {
-                            handleBrightnessChange(brightness)
-                        }
-                    },
-                    onMotionDetected = { motionLevel ->
-                        if (motionDetectionEnabled) {
-                            handleMotionDetected(motionLevel)
-                        }
-                    },
-                    onFrameReady = { jpegData ->
-                        if (cameraStreamEnabled) {
-                            mjpegServer?.updateFrame(jpegData)
-                        }
-                    }
-                ))
+                analysis.setAnalyzer(cameraExecutor, analyzer)
             }
         
         // Use front camera
@@ -670,6 +681,10 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
     }
     
     private fun handleMotionDetected(motionLevel: Double) {
+        val currentTime = System.currentTimeMillis()
+        if (currentTime - lastScreenStateChangeTime < SCREEN_STATE_CHANGE_COOLDOWN_MS) {
+            return
+        }
         if (motionLevel > motionThreshold) {
             Log.d(TAG, "Motion detected: $motionLevel (threshold: $motionThreshold)")
             onMotionDetected()
@@ -678,6 +693,9 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
     
     private fun onMotionDetected() {
         val currentTime = System.currentTimeMillis()
+        if (currentTime - lastScreenStateChangeTime < SCREEN_STATE_CHANGE_COOLDOWN_MS) {
+            return
+        }
         lastMotionTime = currentTime
         
         // If screen is off, turn it on
@@ -704,14 +722,16 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
             if (!isScreenOn) return@post
             
             isScreenOn = false
+            lastScreenStateChangeTime = System.currentTimeMillis()
+            motionAnalyzer?.resetGridValues()
             Log.d(TAG, "Turning screen OFF")
             
             // Cancel the screen off timer
             mainHandler.removeCallbacks(screenOffRunnable)
             
-            // Dim the screen to minimum
+            // Dim the screen to 0.0f
             val params = window.attributes
-            params.screenBrightness = 0.01f
+            params.screenBrightness = 0.0f
             window.attributes = params
             
             // Hide progress bar and WebView while screen is off
@@ -736,6 +756,8 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
             if (isScreenOn) return@post
             
             isScreenOn = true
+            lastScreenStateChangeTime = System.currentTimeMillis()
+            motionAnalyzer?.resetGridValues()
             Log.d(TAG, "Turning screen ON")
             
             // Restore screen brightness
@@ -976,6 +998,10 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
             return (sum.toDouble() / (limit / 8))
         }
         
+        fun resetGridValues() {
+            previousGridValues = null
+        }
+        
         private fun calculateMotionLevel(data: ByteArray, width: Int, height: Int): Double {
             val currentGridValues = calculateGridValues(data, width, height)
             val prevGridValues = previousGridValues
@@ -984,17 +1010,32 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
             
             var totalDiff = 0.0
             var significantCells = 0
+            var positiveShifts = 0
+            var negativeShifts = 0
+            val totalCells = gridRows * gridCols
             
             for (i in currentGridValues.indices) {
-                val diff = kotlin.math.abs(currentGridValues[i] - prevGridValues[i])
-                if (diff > 5) {
-                    totalDiff += diff
+                val diffVal = currentGridValues[i] - prevGridValues[i]
+                val absDiff = kotlin.math.abs(diffVal)
+                if (absDiff > 5) {
+                    totalDiff += absDiff
                     significantCells++
+                    if (diffVal > 0) positiveShifts++ else negativeShifts++
+                }
+            }
+            
+            // Filter out global illumination changes (e.g. screen dimming/brightening or ambient light shifts)
+            if (significantCells >= (totalCells * 0.70)) {
+                val posRatio = positiveShifts.toDouble() / significantCells
+                val negRatio = negativeShifts.toDouble() / significantCells
+                if (posRatio > 0.85 || negRatio > 0.85) {
+                    Log.d(TAG, "Global illumination shift detected (pos: $posRatio, neg: $negRatio), suppressing motion trigger")
+                    return 0.0
                 }
             }
             
             val motionLevel = if (significantCells > 0) {
-                (totalDiff / significantCells) * (significantCells.toDouble() / (gridRows * gridCols))
+                (totalDiff / significantCells) * (significantCells.toDouble() / totalCells)
             } else {
                 0.0
             }
@@ -1009,17 +1050,32 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
             
             var totalDiff = 0.0
             var significantCells = 0
+            var positiveShifts = 0
+            var negativeShifts = 0
+            val totalCells = gridRows * gridCols
             
             for (i in currentGridValues.indices) {
-                val diff = kotlin.math.abs(currentGridValues[i] - prevGridValues[i])
-                if (diff > 5) {
-                    totalDiff += diff
+                val diffVal = currentGridValues[i] - prevGridValues[i]
+                val absDiff = kotlin.math.abs(diffVal)
+                if (absDiff > 5) {
+                    totalDiff += absDiff
                     significantCells++
+                    if (diffVal > 0) positiveShifts++ else negativeShifts++
+                }
+            }
+            
+            // Filter out global illumination changes (e.g. screen dimming/brightening or ambient light shifts)
+            if (significantCells >= (totalCells * 0.70)) {
+                val posRatio = positiveShifts.toDouble() / significantCells
+                val negRatio = negativeShifts.toDouble() / significantCells
+                if (posRatio > 0.85 || negRatio > 0.85) {
+                    Log.d(TAG, "Global illumination shift detected (pos: $posRatio, neg: $negRatio), suppressing motion trigger")
+                    return 0.0
                 }
             }
             
             val motionLevel = if (significantCells > 0) {
-                (totalDiff / significantCells) * (significantCells.toDouble() / (gridRows * gridCols))
+                (totalDiff / significantCells) * (significantCells.toDouble() / totalCells)
             } else {
                 0.0
             }
